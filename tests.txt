@@ -11,3 +11,6 @@
 --package A --repo test_repo.txt --mode test --max-depth 1
 --package A --repo test_repo.txt --mode test --max-depth 2
 --package A --repo test_repo.txt --mode test --max-depth 3
+
+    Stage 4
+--package A --repo test_repo2.txt --mode test --max-depth 10

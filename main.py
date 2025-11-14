@@ -166,6 +166,37 @@ def fetch_cargo_dep_list(package_name: str, base_repo_url: str) -> list[str]:
     raise NotImplementedError("Transitive dependency resolution is only supported in --mode test")
 
 
+def get_installation_order(graph: dict[str, list[str]], root: str) -> list[str]:
+    visited = set()
+    order = []
+    stack = [root]
+    # Для отслеживания, обработаны ли все зависимости узла
+    processed = set()
+
+    while stack:
+        node = stack[-1]  # смотрим вершину, не удаляя
+        if node in processed:
+            stack.pop()
+            continue
+
+        visited.add(node)
+        all_deps_processed = True
+
+        # Проходим по зависимостям в обратном порядке (чтобы сохранить порядок)
+        for dep in reversed(graph.get(node, [])):
+            if dep not in visited:
+                stack.append(dep)
+                all_deps_processed = False
+
+        if all_deps_processed:
+            # Все зависимости обработаны — можно добавить в порядок
+            processed.add(node)
+            stack.pop()
+            order.append(node)
+
+    return order
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--package", required=True)
@@ -197,6 +228,10 @@ def main():
                 fetcher_func=None,
                 test_graph=test_graph
             )
+            install_order = get_installation_order(dep_graph, package)
+            print("\nInstallation order (dependencies first):")
+            for i, pkg in enumerate(install_order, 1):
+                print(f"  {i}. {pkg}")
         else:
             toml_content = fetch_cargo_toml(repo, mode, package)
             direct_deps = parse_dependencies(toml_content)
