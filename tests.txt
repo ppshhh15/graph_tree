@@ -14,3 +14,8 @@
 
     Stage 4
 --package A --repo test_repo2.txt --mode test --max-depth 10
+
+    Stage 5
+--package A --repo test_repo2.txt --mode test --max-depth 3
+--package X --repo test_repo3.txt --mode test --max-depth 5
+--package serde --repo https://raw.githubusercontent.com/serde-rs/serde/master/serde/Cargo.toml --mode online --max-depth 1

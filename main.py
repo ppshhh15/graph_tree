@@ -93,7 +93,6 @@ def parse_dependencies(toml_content: str) -> list[str]:
     return dependencies
 
 
-# --- Test mode handling ---
 def parse_test_graph(repo_path: str) -> dict[str, list[str]]:
     graph = {}
     with open(repo_path, 'r', encoding='utf-8') as f:
@@ -170,11 +169,10 @@ def get_installation_order(graph: dict[str, list[str]], root: str) -> list[str]:
     visited = set()
     order = []
     stack = [root]
-    # Для отслеживания, обработаны ли все зависимости узла
     processed = set()
 
     while stack:
-        node = stack[-1]  # смотрим вершину, не удаляя
+        node = stack[-1]
         if node in processed:
             stack.pop()
             continue
@@ -182,19 +180,25 @@ def get_installation_order(graph: dict[str, list[str]], root: str) -> list[str]:
         visited.add(node)
         all_deps_processed = True
 
-        # Проходим по зависимостям в обратном порядке (чтобы сохранить порядок)
         for dep in reversed(graph.get(node, [])):
             if dep not in visited:
                 stack.append(dep)
                 all_deps_processed = False
 
         if all_deps_processed:
-            # Все зависимости обработаны — можно добавить в порядок
             processed.add(node)
             stack.pop()
             order.append(node)
 
     return order
+
+
+def graph_to_d2(graph: dict[str, list[str]]) -> str:
+    lines = []
+    for pkg, deps in graph.items():
+        for dep in deps:
+            lines.append(f"{pkg} -> {dep}")
+    return "\n".join(lines)
 
 
 def main():
@@ -243,6 +247,13 @@ def main():
                 print(f"  {pkg} -> {', '.join(deps)}")
             else:
                 print(f"  {pkg} -> (no dependencies)")
+
+        print("\nD2 visualization:")
+        d2_output = graph_to_d2(dep_graph)
+        if d2_output.strip():
+            print(d2_output)
+        else:
+            print("# No dependencies to visualize")
 
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
