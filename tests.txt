@@ -3,3 +3,6 @@
 --package x --repo . --mode invalid --max-depth 1
 --package x --repo . --mode test --max-depth -1
 --package x --repo /nonexistent --mode test --max-depth 1
+
+    Stage 2
+--package serde_json --repo https://raw.githubusercontent.com/rust-lang/cargo/master/Cargo.toml --mode online --max-depth 1

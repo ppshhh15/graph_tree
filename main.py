@@ -1,12 +1,17 @@
 import argparse
 import sys
 import os
+import re
 from urllib.parse import urlparse
+from urllib.request import urlopen, Request
+from urllib.error import URLError
+
 
 def validate_package_name(name: str) -> str:
     if not name or not name.strip():
         raise ValueError("Package name cannot be empty.")
     return name.strip()
+
 
 def validate_repo_url_or_path(repo: str) -> str:
     if not repo:
@@ -19,11 +24,13 @@ def validate_repo_url_or_path(repo: str) -> str:
     else:
         raise ValueError(f"Repository path does not exist and is not a valid URL: {repo}")
 
+
 def validate_mode(mode: str) -> str:
     allowed_modes = {'online', 'offline', 'test'}
     if mode not in allowed_modes:
         raise ValueError(f"Mode must be one of {allowed_modes}, got: {mode}")
     return mode
+
 
 def validate_max_depth(depth_str: str) -> int:
     try:
@@ -36,6 +43,55 @@ def validate_max_depth(depth_str: str) -> int:
             raise ValueError("Max depth must be an integer.")
         else:
             raise
+
+
+def fetch_cargo_toml(repo: str, mode: str, package: str) -> str:
+    parsed = urlparse(repo)
+
+    if parsed.scheme in ('http', 'https'):
+        if mode != 'online':
+            raise ValueError("URL repository requires --mode online")
+        try:
+            req = Request(repo)
+            with urlopen(req) as response:
+                return response.read().decode('utf-8')
+        except URLError as e:
+            raise ValueError(f"Failed to fetch Cargo.toml from {repo}: {e}")
+    else:
+        if mode not in ('offline', 'test'):
+            raise ValueError("Local repository requires --mode offline or test")
+        cargo_path = os.path.join(repo, "Cargo.toml")
+        if not os.path.isfile(cargo_path):
+            raise ValueError(f"Cargo.toml not found at {cargo_path}")
+        with open(cargo_path, 'r', encoding='utf-8') as f:
+            return f.read()
+
+
+def parse_dependencies(toml_content: str) -> list[str]:
+    lines = toml_content.splitlines()
+    in_dependencies = False
+    dependencies = []
+
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith('#'):
+            continue
+
+        if line == "[dependencies]":
+            in_dependencies = True
+            continue
+        elif line.startswith('[') and line != "[dependencies]":
+            in_dependencies = False
+            continue
+
+        if in_dependencies:
+            match = re.match(r'^([a-zA-Z0-9_-]+)\s*=', line)
+            if match:
+                dep_name = match.group(1)
+                dependencies.append(dep_name)
+
+    return dependencies
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -58,12 +114,23 @@ def main():
         print(f"  mode = {mode}")
         print(f"  max_depth = {max_depth}")
 
+        toml_content = fetch_cargo_toml(repo, mode, package)
+        dependencies = parse_dependencies(toml_content)
+
+        print("\nDirect dependencies:")
+        if dependencies:
+            for dep in dependencies:
+                print(f"  {dep}")
+        else:
+            print("  (none)")
+
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
     except Exception as e:
         print(f"Unexpected error: {e}", file=sys.stderr)
         sys.exit(2)
+
 
 if __name__ == "__main__":
     main()
